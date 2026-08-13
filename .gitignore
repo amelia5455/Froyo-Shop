@@ -1,3 +1,4 @@
 .DS_Store
 gallery.json
 .vercel
+.env*

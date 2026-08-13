@@ -11,9 +11,46 @@ const MIME = {
   '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
 };
 
-const readGallery = () => {
+// Storage: Upstash Redis when provisioned (Vercel), gallery.json locally
+const LIST_KEY = 'froyo:gallery';
+const MAX_ENTRIES = 200;
+const redisUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+const redisToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+const useRedis = Boolean(redisUrl && redisToken);
+
+async function redis(commands) {
+  const res = await fetch(`${redisUrl}/pipeline`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${redisToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify(commands),
+  });
+  if (!res.ok) throw new Error(`redis ${res.status}`);
+  return res.json();
+}
+
+async function readGallery() {
+  if (useRedis) {
+    const [{ result }] = await redis([['LRANGE', LIST_KEY, '0', String(MAX_ENTRIES - 1)]]);
+    return (result || [])
+      .map((s) => { try { return JSON.parse(s); } catch { return null; } })
+      .filter(Boolean)
+      .reverse(); // stored newest-first; clients expect oldest-first
+  }
   try { return JSON.parse(fs.readFileSync(GALLERY, 'utf8')); } catch { return []; }
-};
+}
+
+async function addEntry(entry) {
+  if (useRedis) {
+    await redis([
+      ['LPUSH', LIST_KEY, JSON.stringify(entry)],
+      ['LTRIM', LIST_KEY, '0', String(MAX_ENTRIES - 1)],
+    ]);
+    return;
+  }
+  const list = await readGallery();
+  list.push(entry);
+  fs.writeFileSync(GALLERY, JSON.stringify(list));
+}
 
 // crude server-side guard; the client also sanitizes before rendering
 const looksSafe = (markup) =>
@@ -25,15 +62,19 @@ http.createServer((req, res) => {
 
   if (url === '/api/gallery') {
     if (req.method === 'GET') {
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify(readGallery()));
+      readGallery()
+        .then((list) => {
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify(list));
+        })
+        .catch(() => { res.statusCode = 500; res.end('{"error":"storage unavailable"}'); });
       return;
     }
     if (req.method === 'POST') {
       let body = '';
       req.on('data', c => { body += c; if (body.length > 500_000) req.destroy(); });
       req.on('end', () => {
-        try {
+        (async () => {
           const e = JSON.parse(body);
           const decor = String(e.decor || '').slice(0, 200_000);
           if (!looksSafe(decor)) throw new Error('rejected');
@@ -44,15 +85,13 @@ http.createServer((req, res) => {
             cup: String(e.cup || 'dot-blue').slice(0, 20),
             decor,
           };
-          const list = readGallery();
-          list.push(entry);
-          fs.writeFileSync(GALLERY, JSON.stringify(list));
+          await addEntry(entry);
           res.setHeader('content-type', 'application/json');
           res.end(JSON.stringify(entry));
-        } catch {
+        })().catch(() => {
           res.statusCode = 400;
           res.end('{"error":"bad request"}');
-        }
+        });
       });
       return;
     }
@@ -67,4 +106,4 @@ http.createServer((req, res) => {
   }
   res.setHeader('content-type', MIME[path.extname(file)] || 'application/octet-stream');
   res.end(fs.readFileSync(file));
-}).listen(PORT, () => console.log(`froyo lab on http://localhost:${PORT}`));
+}).listen(PORT, () => console.log(`froyo shop on http://localhost:${PORT}`));
