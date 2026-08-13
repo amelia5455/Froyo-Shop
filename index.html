@@ -127,7 +127,27 @@
     display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;
     max-width:920px;margin:0 auto;
   }
+  .gallery .cell{cursor:pointer;border-radius:14px;transition:transform .15s ease}
+  .gallery .cell:hover{transform:scale(1.05)}
   .gallery .cell svg{width:100%;height:auto;display:block}
+  #bowl-modal{
+    position:fixed;inset:0;z-index:70;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #bowl-modal[hidden]{display:none}
+  #bowl-modal .scrim{
+    position:absolute;inset:0;
+    background:rgba(249,247,240,.55);
+    backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  }
+  #bowl-modal .card{
+    position:relative;background:#FFFDF6;border-radius:24px;
+    padding:18px 22px 20px;width:min(380px,90vw);text-align:center;
+    box-shadow:0 24px 60px rgba(46,58,92,.18);
+    animation:cardIn .35s cubic-bezier(.2,.9,.3,1.05);
+  }
+  #bowl-modal #bowl-slot svg{width:min(280px,70vw);height:auto;margin:0 auto;display:block}
+  #close-bowl{margin-top:10px}
   .gallery .empty{
     grid-column:1/-1;text-align:center;color:#b1ada0;font-size:14px;padding:40px 0;
   }
@@ -542,6 +562,15 @@
   </div>
   <div class="gallery" id="gallery"></div>
 </div>
+
+<!-- single-bowl popup -->
+<div id="bowl-modal" hidden>
+  <div class="scrim"></div>
+  <div class="card">
+    <div id="bowl-slot"></div>
+    <button id="close-bowl" class="chip">Close</button>
+  </div>
+</div>
 <div class="toast" id="toast">Link copied!</div>
 
 <script>
@@ -823,9 +852,7 @@ function sanitizeDecor(markup){
   return out;
 }
 
-function renderCell(entry){
-  const cell = document.createElement('div');
-  cell.className = 'cell';
+function buildBowlSvg(entry){
   const c = svg.cloneNode(true);
   c.removeAttribute('aria-label'); c.setAttribute('aria-hidden','true');
   const fl = entry.flavor==='swirl' ? FLAVORS.vanilla : (FLAVORS[entry.flavor] || FLAVORS.vanilla);
@@ -840,9 +867,27 @@ function renderCell(entry){
   c.querySelector('#decor').replaceChildren(...sanitizeDecor(entry.decor || ''));
   ['#spoon','#spoon-cover'].forEach(s=>{ const n = c.querySelector(s); if (n) n.remove(); });
   c.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
-  cell.appendChild(c);
+  return c;
+}
+
+function renderCell(entry){
+  const cell = document.createElement('div');
+  cell.className = 'cell';
+  cell.appendChild(buildBowlSvg(entry));
+  cell.addEventListener('click', ()=>openBowl(entry));
   return cell;
 }
+
+/* single-bowl popup */
+const bowlModal = document.getElementById('bowl-modal');
+function openBowl(entry){
+  document.getElementById('bowl-slot').replaceChildren(buildBowlSvg(entry));
+  bowlModal.hidden = false;
+}
+function closeBowl(){ bowlModal.hidden = true; }
+document.getElementById('close-bowl').addEventListener('click', closeBowl);
+bowlModal.querySelector('.scrim').addEventListener('click', closeBowl);
+document.addEventListener('keydown', e=>{ if (e.key === 'Escape') closeBowl(); });
 
 function loadGallery(){
   const grid = document.getElementById('gallery');
