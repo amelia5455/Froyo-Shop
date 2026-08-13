@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Froyo Shop</title>
+<style>
+  :root{
+    --bg:#F9F7F0;
+    --ink:#191817;
+    --navy:#2E3A5C;
+    --chip:#ECEAE1;
+    --chip-ink:#191817;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100vh;
+  }
+  header{
+    width:100%;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:16px 32px 0;
+    font-size:14px;
+  }
+  .brand{font-weight:700;letter-spacing:.14em;color:var(--navy)}
+  header .brand span{font-weight:400;letter-spacing:.02em;color:#8b887e;margin-left:10px}
+  header nav{display:flex;gap:28px;color:#191817}
+  main{
+    width:min(560px,94vw);
+    display:flex;flex-direction:column;align-items:center;
+    padding-bottom:24px;
+  }
+  #stage{width:min(370px,80vw);margin-top:-16px}
+  #stage svg{width:100%;height:auto;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+  #stage svg text{pointer-events:none}
+  #stage.placing svg{cursor:crosshair}
+
+  .swatches{
+    display:flex;gap:10px;justify-content:center;align-items:center;
+    margin:0 0 8px;
+  }
+  .swatches.cups{gap:9px;margin:0 0 12px}
+  .swatch-label{
+    font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:#b1ada0;margin:1px 0 5px;text-align:center;font-weight:600;
+  }
+  .swatch.cup-sw{width:23px;height:20px;border-radius:6px}
+  .swatch.cup-sw.active::after{inset:-4px;border-radius:9px}
+  .swatch{
+    width:27px;height:27px;border-radius:50%;
+    border:none;cursor:pointer;padding:0;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);
+    transition:transform .15s ease;
+    position:relative;
+  }
+  .swatch:hover{transform:scale(1.1)}
+  .swatch.active::after{
+    content:"";position:absolute;inset:-5px;border-radius:50%;
+    border:2px solid var(--navy);
+  }
+  .tabs{
+    display:flex;width:100%;gap:6px;background:transparent;margin-bottom:9px;
+  }
+  .tab{
+    flex:1;text-align:center;padding:8px 0;border-radius:11px;
+    font-size:14px;font-weight:600;cursor:pointer;border:none;
+    background:var(--chip);color:var(--chip-ink);
+  }
+  .tab.inactive{background:transparent;color:#9b988e;font-weight:500}
+  .chips{
+    display:flex;flex-wrap:wrap;gap:7px;justify-content:center;
+    min-height:66px;align-content:flex-start;
+  }
+  .chip{
+    border:none;cursor:pointer;
+    padding:7px 13px;border-radius:999px;
+    background:var(--chip);color:var(--chip-ink);
+    font-size:13px;font-weight:500;
+    transition:background .15s ease,color .15s ease;
+  }
+  .chip.on{background:#191817;color:#fff}
+  .chip[data-syr]::before{
+    content:"";display:inline-block;width:11px;height:11px;border-radius:50%;
+    margin-right:8px;vertical-align:-1.5px;background:var(--dot);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);
+  }
+  .chip[data-syr].on::before{
+    background:transparent;
+    box-shadow:inset 0 0 0 2.5px var(--dot);
+  }
+  .hint{
+    font-size:12px;color:#9b988e;margin-top:4px;text-align:center;
+    opacity:0;transition:opacity .2s ease;
+  }
+  #stage.placing ~ * .hint, body.has-tool .hint{opacity:1}
+  .actions{
+    display:flex;gap:9px;width:100%;margin-top:7px;
+  }
+  .actions button{
+    flex:1;padding:10px 0;border-radius:11px;border:none;cursor:pointer;
+    font-size:14px;font-weight:600;
+  }
+  #clear{background:var(--chip);color:var(--chip-ink)}
+  #share{background:var(--navy);color:#fff}
+  #share:active{transform:translateY(1px)}
+  .navlink{
+    background:none;border:none;cursor:pointer;
+    font:inherit;color:var(--ink);font-weight:500;
+  }
+  .navlink:hover{text-decoration:underline}
+  #gallery-view{
+    position:fixed;inset:0;z-index:50;background:var(--bg);
+    overflow-y:auto;padding:16px 32px 60px;
+  }
+  #gallery-view .bar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin:0 0 26px;font-size:14px;
+  }
+  .gallery{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;
+    max-width:920px;margin:0 auto;
+  }
+  .gallery .cell svg{width:100%;height:auto;display:block}
+  .gallery .empty{
+    grid-column:1/-1;text-align:center;color:#b1ada0;font-size:14px;padding:40px 0;
+  }
+  @media (max-width:560px){
+    #gallery-view{padding:18px 18px 40px}
+    .gallery{grid-template-columns:repeat(2,1fr)}
+  }
+  #spoon{
+    transform:translate(-380px,140px) rotate(75deg);
+    transition:transform .75s cubic-bezier(.22,.9,.3,1.03);
+    pointer-events:none;
+  }
+  #spoon.spoon-in{transform:translate(252px,334px) rotate(-38deg)}
+  #share-modal{
+    position:fixed;inset:0;z-index:60;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #share-modal[hidden],#gallery-view[hidden]{display:none}
+  #share-modal .scrim{
+    position:absolute;inset:0;
+    background:rgba(249,247,240,.55);
+    backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  }
+  #share-modal .card{
+    position:relative;background:#FFFDF6;border-radius:24px;
+    padding:20px 26px 24px;width:min(430px,92vw);text-align:center;
+    box-shadow:0 24px 60px rgba(46,58,92,.18);
+    animation:cardIn .35s cubic-bezier(.2,.9,.3,1.05);
+  }
+  @keyframes cardIn{from{transform:translateY(26px) scale(.94);opacity:0}to{transform:none;opacity:1}}
+  #share-modal #stage{width:230px;margin:-4px auto 2px}
+  .share-title{font-size:19px;font-weight:700}
+  .share-sub{font-size:13.5px;color:#9b988e;margin:6px 0 16px}
+  #share-modal .actions{margin-top:0}
+  #share-cancel{background:var(--chip);color:var(--chip-ink)}
+  #share-confirm{background:var(--navy);color:#fff}
+  .toast{
+    position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:#191817;color:#fff;padding:10px 18px;border-radius:999px;
+    font-size:14px;opacity:0;pointer-events:none;transition:all .25s ease;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (max-width:560px){
+    header{padding:20px 20px 0}
+    header nav{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">THE FROYO SHOP</div>
+  <nav><button id="view-gallery" class="navlink">View gallery</button></nav>
+</header>
+
+<main>
+  <div id="stage">
+  <svg viewBox="0 0 600 780" xmlns="http://www.w3.org/2000/svg" aria-label="ELAÁ froyo cup">
+    <defs>
+      <clipPath id="cupClip"><path d="M168 483 L210 686 Q300 706 390 686 L432 483 Z"/></clipPath>
+      <clipPath id="serveClip"><path d="M322 96
+        C 340 116, 352 134, 350 152 C 362 168, 368 190, 358 208 C 356 214, 352 218, 346 220
+        C 372 236, 384 262, 374 286 C 372 292, 367 297, 360 300
+        C 392 318, 406 350, 396 380 C 394 388, 388 394, 380 397
+        C 414 414, 430 448, 426 477
+        C 395 514, 205 514, 174 477
+        C 170 448, 188 412, 220 400 C 212 396, 206 390, 204 382
+        C 194 352, 208 320, 240 302 C 232 298, 227 292, 225 284
+        C 217 258, 229 232, 256 218 C 250 214, 246 209, 244 202
+        C 238 180, 248 158, 270 144 C 264 138, 262 130, 264 122
+        C 270 106, 286 94, 302 90 C 312 88, 318 90, 322 96 Z"/></clipPath>
+      <!-- cuts off the spoon bowl where it enters the yogurt (spoon-local coords) -->
+      <clipPath id="spoonBite"><rect x="-95" y="-265" width="190" height="271"/></clipPath>
+      <!-- serve silhouette in on-stage coordinates (same transform as #soft-serve) -->
+      <clipPath id="serveClipOnStage"><path transform="translate(300 483) scale(.93 .88) translate(-300 -483)" d="M322 96
+        C 340 116, 352 134, 350 152 C 362 168, 368 190, 358 208 C 356 214, 352 218, 346 220
+        C 372 236, 384 262, 374 286 C 372 292, 367 297, 360 300
+        C 392 318, 406 350, 396 380 C 394 388, 388 394, 380 397
+        C 414 414, 430 448, 426 477
+        C 395 514, 205 514, 174 477
+        C 170 448, 188 412, 220 400 C 212 396, 206 390, 204 382
+        C 194 352, 208 320, 240 302 C 232 298, 227 292, 225 284
+        C 217 258, 229 232, 256 218 C 250 214, 246 209, 244 202
+        C 238 180, 248 158, 270 144 C 264 138, 262 130, 264 122
+        C 270 106, 286 94, 302 90 C 312 88, 318 90, 322 96 Z"/></clipPath>
+      <filter id="wobble" x="-8%" y="-8%" width="116%" height="116%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+
+      <!-- soft side shading for the cup (no hard seam) -->
+      <linearGradient id="cupShade" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#000" stop-opacity=".06"/>
+        <stop offset=".18" stop-color="#000" stop-opacity="0"/>
+        <stop offset=".62" stop-color="#000" stop-opacity="0"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".1"/>
+      </linearGradient>
+
+      <!-- stripes that taper with the cup walls -->
+      <g id="cup-stripe-paths">
+        <path d="M168 483 L217 720 L229.8 720 L188.3 483 Z"/>
+        <path d="M208.6 483 L242.6 720 L255.3 720 L228.9 483 Z"/>
+        <path d="M249.2 483 L268.1 720 L280.9 720 L269.5 483 Z"/>
+        <path d="M289.9 483 L293.6 720 L306.4 720 L310.2 483 Z"/>
+        <path d="M330.5 483 L319.1 720 L331.9 720 L350.8 483 Z"/>
+        <path d="M371.1 483 L344.7 720 L357.4 720 L391.4 483 Z"/>
+        <path d="M411.7 483 L370.2 720 L383 720 L432 483 Z"/>
+      </g>
+      <pattern id="pat-dot-blue" patternUnits="userSpaceOnUse" width="62" height="54">
+        <rect width="62" height="54" fill="#3FA9DC"/>
+        <circle cx="16" cy="14" r="14" fill="#FFFDF6"/><circle cx="47" cy="41" r="14" fill="#FFFDF6"/>
+      </pattern>
+      <pattern id="pat-dot-orange" patternUnits="userSpaceOnUse" width="62" height="54">
+        <rect width="62" height="54" fill="#F5913B"/>
+        <circle cx="16" cy="14" r="14" fill="#FFFDF6"/><circle cx="47" cy="41" r="14" fill="#FFFDF6"/>
+      </pattern>
+      <pattern id="pat-dot-pink" patternUnits="userSpaceOnUse" width="62" height="54">
+        <rect width="62" height="54" fill="#F2799C"/>
+        <circle cx="16" cy="14" r="14" fill="#FFFDF6"/><circle cx="47" cy="41" r="14" fill="#FFFDF6"/>
+      </pattern>
+
+      <!-- topping shapes (sized to read like Sasha's — chunky) -->
+      <g id="gummy">
+        <ellipse cx="0" cy="8" rx="10" ry="11"/>
+        <circle cx="0" cy="-8" r="8"/>
+        <circle cx="-6.5" cy="-14" r="3.5"/>
+        <circle cx="6.5" cy="-14" r="3.5"/>
+        <ellipse cx="-9.5" cy="3" rx="3.6" ry="5.6" transform="rotate(26 -9.5 3)"/>
+        <ellipse cx="9.5" cy="3" rx="3.6" ry="5.6" transform="rotate(-26 9.5 3)"/>
+        <ellipse cx="-6" cy="16" rx="4" ry="5.2"/>
+        <ellipse cx="6" cy="16" rx="4" ry="5.2"/>
+        <ellipse cx="0" cy="-6" rx="4.2" ry="3.1" fill="#FFF" opacity=".35"/>
+        <ellipse cx="0" cy="9" rx="6" ry="7" fill="#FFF" opacity=".18"/>
+        <circle cx="-2.8" cy="-9.5" r="1" fill="#000" opacity=".35"/>
+        <circle cx="2.8" cy="-9.5" r="1" fill="#000" opacity=".35"/>
+      </g>
+      <g id="sprinkle"><rect x="-13" y="-4" width="26" height="8" rx="4"/></g>
+      <g id="star"><path d="M0 -8 L2 -2.75 L7.6 -2.5 L3.23 1.05 L4.7 6.5 L0 3.4 L-4.7 6.5 L-3.23 1.05 L-7.6 -2.5 L-2 -2.75 Z"/></g>
+      <g id="mallow">
+        <rect x="-13" y="-10" width="26" height="20" rx="6.5"/>
+        <rect x="-10" y="-7.4" width="21" height="15" rx="5" fill="#000" opacity=".07"
+              transform="translate(2 2)"/>
+      </g>
+      <g id="chip">
+        <path d="M0 -12 C 4 -6, 9 -3, 9 2 A 9 9 0 1 1 -9 2 C -9 -3, -4 -6, 0 -12 Z"/>
+        <path d="M-4 -1 C -4.5 1.5, -3.5 4, -1.5 5" fill="none" stroke="#FFF" stroke-width="1.6"
+              stroke-linecap="round" opacity=".3"/>
+      </g>
+      <g id="berry">
+        <path d="M0 -13 C 11 -13, 16.5 -7.5, 16 0 C 15 9, 8 17, 0 19.5 C -8 17, -15 9, -16 0 C -16.5 -7.5, -11 -13, 0 -13 Z" fill="#E4485A"/>
+        <path d="M0 -12 l1.6 -4.5 -3.2 0 Z" fill="#5F9E58"/>
+        <path d="M-9 -11.5 C -5 -15.5, 5 -15.5, 9 -11.5 C 5.5 -9, 3 -9.2, 0 -11.4 C -3 -9.2, -5.5 -9, -9 -11.5 Z" fill="#5F9E58"/>
+        <g fill="#FCDFC9">
+          <circle cx="-6.5" cy="-3" r="1.5"/><circle cx="0" cy="-1" r="1.5"/>
+          <circle cx="6.5" cy="-3" r="1.5"/><circle cx="-4" cy="6" r="1.5"/>
+          <circle cx="4" cy="6" r="1.5"/><circle cx="0" cy="12" r="1.5"/>
+        </g>
+      </g>
+      <!-- a dense patch of ground graham dust with a few chunkier crumbs -->
+      <g id="dust">
+        <g fill="#C98F52">
+          <circle cx="-14" cy="1" r="1.8"/><circle cx="-6" cy="-4" r="1.5"/>
+          <circle cx="2" cy="3" r="1.9"/><circle cx="10" cy="-2" r="1.6"/>
+          <circle cx="15" cy="3" r="1.4"/><circle cx="-2" cy="-1" r="1.3"/>
+          <circle cx="-9" cy="6" r="1.5"/><circle cx="5" cy="7" r="1.4"/>
+          <circle cx="12" cy="6" r="1.2"/>
+        </g>
+        <g fill="#B87F42">
+          <circle cx="-11" cy="-2" r="1.4"/><circle cx="-4" cy="4" r="1.7"/>
+          <circle cx="6" cy="-5" r="1.4"/><circle cx="13" cy="1" r="1.8"/>
+          <circle cx="0" cy="6" r="1.4"/><circle cx="-16" cy="4" r="1.2"/>
+          <circle cx="8" cy="3" r="1.3"/><circle cx="17" cy="-2" r="1.1"/>
+        </g>
+        <g fill="#DDA968" opacity=".95">
+          <circle cx="-16" cy="-3" r="1.5"/><circle cx="-8" cy="2" r="1.8"/>
+          <circle cx="4" cy="-2" r="1.5"/><circle cx="9" cy="5" r="1.5"/>
+          <circle cx="16" cy="-5" r="1.3"/><circle cx="-1" cy="-6" r="1.4"/>
+          <circle cx="-12" cy="8" r="1.2"/><circle cx="2" cy="-8" r="1.2"/>
+        </g>
+        <g fill="#A6742F" opacity=".9">
+          <circle cx="-12" cy="4" r="1.1"/><circle cx="-5" cy="-8" r="1.1"/>
+          <circle cx="7" cy="1" r="1.2"/><circle cx="12" cy="-6" r="1.1"/>
+          <circle cx="17" cy="2" r="1"/><circle cx="-3" cy="8" r="1"/>
+          <circle cx="0" cy="1" r="1.1"/>
+        </g>
+        <!-- chunkier crumbs with a lighter facet for dimension -->
+        <g>
+          <path d="M-8 -1 l2.6 -2 2.8 1 .6 2.6 -2.4 1.8 -3 -.8 Z" fill="#B87F42"/>
+          <path d="M-7.6 -1.4 l2.2 -1.6 2.4 .8 -2.2 1.2 Z" fill="#DDA968"/>
+          <path d="M9 -4 l2.2 -1.6 2.4 .9 .4 2.2 -2 1.5 -2.6 -.7 Z" fill="#A6742F"/>
+          <path d="M9.4 -4.3 l1.8 -1.3 2 .7 -1.8 1 Z" fill="#C98F52"/>
+          <path d="M-1 4 l2.4 -1.8 2.6 1 .5 2.4 -2.2 1.6 -2.8 -.8 Z" fill="#B87F42"/>
+          <path d="M-.6 3.6 l2 -1.5 2.2 .8 -2 1.1 Z" fill="#DDA968"/>
+        </g>
+      </g>
+      <g id="flake">
+        <path d="M-10 -1.5 C -6 -3.2, -1 -3.4, 4 -2.8 C 7.5 -2.4, 10 -1.4, 9.6 .4 C 9.2 2, 5.5 2.8, 1 2.9 C -3.5 3, -8 2.4, -9.8 1 C -10.6 .3, -10.6 -.8, -10 -1.5 Z"/>
+        <path fill="none" stroke="#E8DFC9" stroke-width="1.1" stroke-linecap="round" opacity=".8"
+              d="M-6.5 .4 C -2 -.6, 3 -.7, 7 0"/>
+      </g>
+      <g id="worm">
+        <path fill="none" stroke-width="9.5" stroke-linecap="round"
+              d="M-21 8 C -13 -9, -3 -9, 3 3 C 7.5 11.5, 14.5 11.5, 21 -3"/>
+        <path fill="none" stroke-width="9.5" stroke-linecap="round" opacity=".55"
+              stroke="#FFF" d="M3 3 C 7.5 11.5, 14.5 11.5, 21 -3"/>
+      </g>
+      <g id="boba">
+        <circle r="11" opacity=".92"/>
+        <circle r="11" fill="#000" opacity=".08"/>
+        <circle cx="-1" cy="-1.6" r="8.8" opacity=".95"/>
+        <ellipse cx="-3.6" cy="-4.6" rx="3.4" ry="2.2" fill="#FFF" opacity=".85" transform="rotate(-28)"/>
+        <circle cx="4.2" cy="3.8" r="1.4" fill="#FFF" opacity=".5"/>
+      </g>
+    </defs>
+
+    <!-- ============ CUP ============ -->
+    <ellipse cx="300" cy="694" rx="132" ry="17" fill="#2E3A5C" opacity=".08"/>
+    <g id="cup">
+      <path id="cup-body" d="M168 483 L210 686 Q300 706 390 686 L432 483 Z" fill="url(#pat-dot-blue)"/>
+      <g clip-path="url(#cupClip)">
+        <g id="stripes-yellow" fill="#F5C844" visibility="hidden"><use href="#cup-stripe-paths"/></g>
+        <g id="stripes-green" fill="#6FBE6B" visibility="hidden"><use href="#cup-stripe-paths"/></g>
+      </g>
+      <path d="M168 483 L210 686 Q300 706 390 686 L432 483 Z" fill="url(#cupShade)"/>
+      <!-- white rolled rim (back) + cup interior -->
+      <ellipse cx="300" cy="483" rx="134" ry="21" fill="#FFFDF6"/>
+      <ellipse cx="300" cy="481" rx="118" ry="15" fill="#EDE6D5"/>
+    </g>
+
+    <!-- ============ SOFT SERVE ============ -->
+    <g id="soft-serve" filter="url(#wobble)" transform="translate(300 483) scale(.93 .88) translate(-300 -483)">
+      <!-- twisted soft-serve with spiral lobes (inspo style) -->
+      <path id="serve-fill" class="sv-base" d="M322 96
+        C 340 116, 352 134, 350 152
+        C 362 168, 368 190, 358 208
+        C 356 214, 352 218, 346 220
+        C 372 236, 384 262, 374 286
+        C 372 292, 367 297, 360 300
+        C 392 318, 406 350, 396 380
+        C 394 388, 388 394, 380 397
+        C 414 414, 430 448, 426 477
+        C 395 514, 205 514, 174 477
+        C 170 448, 188 412, 220 400
+        C 212 396, 206 390, 204 382
+        C 194 352, 208 320, 240 302
+        C 232 298, 227 292, 225 284
+        C 217 258, 229 232, 256 218
+        C 250 214, 246 209, 244 202
+        C 238 180, 248 158, 270 144
+        C 264 138, 262 130, 264 122
+        C 270 106, 286 94, 302 90
+        C 312 88, 318 90, 322 96 Z"/>
+
+      <g clip-path="url(#serveClip)">
+        <!-- swirl-flavor diagonal ribbons, angled with the twist -->
+        <g id="ribbons" visibility="hidden" transform="rotate(-24 300 300)">
+          <rect x="40" y="118" width="520" height="30"/>
+          <rect x="40" y="192" width="520" height="32"/>
+          <rect x="40" y="268" width="520" height="34"/>
+          <rect x="40" y="346" width="520" height="36"/>
+          <rect x="40" y="428" width="520" height="38"/>
+        </g>
+      </g>
+
+      <!-- twist creases following the spiral -->
+      <g fill="none" stroke-width="3" opacity=".45" stroke-linecap="round">
+        <path class="sv-shade-stroke" d="M186 452 C 250 428, 330 408, 392 384"/>
+        <path class="sv-shade-stroke" d="M204 382 C 258 356, 330 330, 374 286"/>
+        <path class="sv-shade-stroke" d="M225 284 C 272 258, 330 236, 358 208"/>
+        <path class="sv-shade-stroke" d="M244 202 C 284 180, 322 164, 350 152"/>
+      </g>
+    </g>
+
+    <!-- placed toppings & syrup strokes appear here, in the order you apply them (kept inside the yogurt) -->
+    <g clip-path="url(#serveClipOnStage)">
+      <g id="decor" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#wobble)"></g>
+    </g>
+
+    <!-- front lip of the rim: constant-width band over the yogurt's bottom (clipped to the cup) -->
+    <g clip-path="url(#cupClip)">
+      <path d="M 170 484 A 134 21 0 0 0 430 484" fill="none" stroke="#FFFDF6"
+            stroke-width="10" stroke-linecap="round"/>
+    </g>
+
+    <!-- froyo spoon (slides in when sharing); bowl is clipped where it enters the yogurt -->
+    <g id="spoon" clip-path="url(#spoonBite)">
+      <!-- handle + bear scaled up; bowl untouched so the landing pose is identical -->
+      <g transform="scale(1.35)">
+        <g fill="#2FBFB3">
+          <path d="M -8 -30 L -6.5 -148 Q -6.5 -156 0 -156 Q 6.5 -156 6.5 -148 L 8 -30 Z"/>
+          <ellipse cx="-8.5" cy="-160" rx="3" ry="5" transform="rotate(20 -8.5 -160)"/>
+          <ellipse cx="8.5" cy="-160" rx="3" ry="5" transform="rotate(-20 8.5 -160)"/>
+          <ellipse cx="0" cy="-158" rx="9.5" ry="11"/>
+          <circle cx="0" cy="-176" r="8.5"/>
+          <circle cx="-6.5" cy="-183" r="3.8"/>
+          <circle cx="6.5" cy="-183" r="3.8"/>
+          <ellipse cx="-5.5" cy="-147" rx="3.5" ry="4.5"/>
+          <ellipse cx="5.5" cy="-147" rx="3.5" ry="4.5"/>
+        </g>
+        <circle cx="-3" cy="-178" r="1" fill="#1E948B"/>
+        <circle cx="3" cy="-178" r="1" fill="#1E948B"/>
+        <ellipse cx="0" cy="-173.5" rx="3" ry="2" fill="#1E948B" opacity=".5"/>
+        <text transform="translate(4 -62) rotate(-90)" text-anchor="middle"
+              font-family="Georgia,serif" font-style="italic" font-weight="700"
+              font-size="15" fill="#1E948B" opacity=".5">Tasty!</text>
+      </g>
+      <ellipse cx="0" cy="0" rx="33" ry="45" fill="#2FBFB3"/>
+      <ellipse cx="0" cy="-2" rx="25" ry="36" fill="#1E948B" opacity=".45"/>
+    </g>
+    <!-- crease where the spoon enters the yogurt -->
+    <g id="spoon-cover" visibility="hidden" clip-path="url(#serveClipOnStage)">
+      <path class="sv-shade-stroke" fill="none" stroke-width="3.5" opacity=".55" stroke-linecap="round"
+        d="M 224 363 Q 259 343 287 314"/>
+    </g>
+
+  </svg>
+  </div>
+
+  <!-- flavor swatches -->
+  <p class="swatch-label">Flavor</p>
+  <div class="swatches" id="swatches" role="radiogroup" aria-label="Flavor">
+    <button class="swatch active" data-flavor="vanilla"    title="Vanilla"             style="background:#F3EAD3"></button>
+    <button class="swatch" data-flavor="chocolate"  title="Chocolate"           style="background:#7C4F2F"></button>
+    <button class="swatch" data-flavor="strawberry" title="Strawberry"          style="background:#F4ADBC"></button>
+    <button class="swatch" data-flavor="pineapple"  title="Dole Pineapple Whip" style="background:#F6E39B"></button>
+    <button class="swatch" data-flavor="matcha"     title="Matcha"              style="background:#A9C583"></button>
+    <button class="swatch" data-flavor="swirl"      title="Swirl"
+            style="background:conic-gradient(from 210deg,#F3EAD3 0 50%,#7C4F2F 50% 100%)"></button>
+  </div>
+
+  <!-- cup swatches -->
+  <p class="swatch-label">Cup</p>
+  <div class="swatches cups" id="cup-swatches" role="radiogroup" aria-label="Cup">
+    <button class="swatch cup-sw" data-cup="pink"   title="Pink cup"   style="background:#F5A9BC"></button>
+    <button class="swatch cup-sw" data-cup="purple" title="Purple cup" style="background:#A78BD3"></button>
+    <button class="swatch cup-sw" data-cup="blue"   title="Blue cup"   style="background:#4FA8D8"></button>
+    <button class="swatch cup-sw" data-cup="stripe-yellow" title="Yellow stripes"
+            style="background:repeating-linear-gradient(90deg,#F5C844 0 5px,#FFFDF6 5px 10px)"></button>
+    <button class="swatch cup-sw" data-cup="stripe-green" title="Green stripes"
+            style="background:repeating-linear-gradient(90deg,#6FBE6B 0 5px,#FFFDF6 5px 10px)"></button>
+    <button class="swatch cup-sw" data-cup="dot-blue" title="Blue polka dot"
+            style="background:radial-gradient(#FFFDF6 2.7px,transparent 3.2px) 0 0/11px 11px,radial-gradient(#FFFDF6 2.7px,transparent 3.2px) 5.5px 5.5px/11px 11px,#3FA9DC"></button>
+    <button class="swatch cup-sw" data-cup="dot-orange" title="Orange polka dot"
+            style="background:radial-gradient(#FFFDF6 2.7px,transparent 3.2px) 0 0/11px 11px,radial-gradient(#FFFDF6 2.7px,transparent 3.2px) 5.5px 5.5px/11px 11px,#F5913B"></button>
+    <button class="swatch cup-sw" data-cup="dot-pink" title="Pink polka dot"
+            style="background:radial-gradient(#FFFDF6 2.7px,transparent 3.2px) 0 0/11px 11px,radial-gradient(#FFFDF6 2.7px,transparent 3.2px) 5.5px 5.5px/11px 11px,#F2799C"></button>
+  </div>
+
+  <!-- tabs -->
+  <div class="tabs">
+    <button class="tab" id="tab-toppings">Toppings</button>
+    <button class="tab inactive" id="tab-syrup">Syrup</button>
+  </div>
+
+  <div class="chips" id="chips-toppings">
+    <button class="chip" data-top="sprinkles">Rainbow sprinkles</button>
+    <button class="chip" data-top="stars">Star sprinkles</button>
+    <button class="chip" data-top="chocsprinkles">Chocolate sprinkles</button>
+    <button class="chip" data-top="gummy">Gummy bears</button>
+    <button class="chip" data-top="mallow">Marshmallows</button>
+    <button class="chip" data-top="chips">Chocolate chips</button>
+    <button class="chip" data-top="berry">Strawberries</button>
+    <button class="chip" data-top="boba">Boba balls</button>
+    <button class="chip" data-top="graham">Graham crackers</button>
+    <button class="chip" data-top="coconut">Coconut flakes</button>
+    <button class="chip" data-top="worms">Gummy worms</button>
+  </div>
+  <div class="chips" id="chips-syrup" style="display:none">
+    <button class="chip" data-syr="marshmallow" style="--dot:#FFFDF6">Marshmallow</button>
+    <button class="chip" data-syr="chocolate" style="--dot:#4A3226">Chocolate</button>
+    <button class="chip" data-syr="caramel" style="--dot:#E09B2D">Caramel</button>
+    <button class="chip" data-syr="strawberry" style="--dot:#D6365B">Strawberry sauce</button>
+    <button class="chip" data-syr="pistachio" style="--dot:#97B85B">Pistachio sauce</button>
+  </div>
+
+  <p class="hint" id="hint">Now press &amp; drag on the froyo to add it ✦</p>
+
+  <div class="actions">
+    <button id="clear">Clear</button>
+    <button id="share">Share ✦</button>
+  </div>
+</main>
+
+<!-- share confirmation -->
+<div id="share-modal" hidden>
+  <div class="scrim"></div>
+  <div class="card">
+    <div id="stage-slot"></div>
+    <p class="share-title">Share your froyo?</p>
+    <p class="share-sub">It'll go up in the Froyo Gallery for everyone to see.</p>
+    <div class="actions">
+      <button id="share-cancel">Keep decorating</button>
+      <button id="share-confirm">Share it ✦</button>
+    </div>
+  </div>
+</div>
+
+<!-- gallery view -->
+<div id="gallery-view" hidden>
+  <div class="bar">
+    <div class="brand">FROYO GALLERY</div>
+    <button id="close-gallery" class="navlink">← Back to the shop</button>
+  </div>
+  <div class="gallery" id="gallery"></div>
+</div>
+<div class="toast" id="toast">Link copied!</div>
+
+<script>
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const FLAVORS = {
+  vanilla:    {base:'#F3EAD3', shade:'#DCCFAE', lite:'#FBF6E8'},
+  chocolate:  {base:'#7C4F2F', shade:'#5E3920', lite:'#966542'},
+  strawberry: {base:'#F4ADBC', shade:'#DE8B9E', lite:'#FAC9D3'},
+  pineapple:  {base:'#F6E39B', shade:'#E3CB74', lite:'#FBF0C2'},
+  matcha:     {base:'#A9C583', shade:'#8CAB66', lite:'#C6DBA6'},
+};
+const TOPPINGS = {
+  sprinkles:{href:'#sprinkle', colors:['#E4485A','#F2A93B','#F2D147','#5F9E58','#7FA8D9','#B78BC9','#E886A8'], scale:[.85,1.15]},
+  stars:    {href:'#star',     colors:['#F94F6D','#FF9F2E','#FFD53D','#5FBF68','#57A8E8','#A76BD9','#FF7BAE'], scale:[1.4,1.9]},
+  chocsprinkles:{href:'#sprinkle', colors:['#5C3A24','#4A2E1B','#6E4A2E','#7B5638'], scale:[.85,1.15]},
+  gummy:    {href:'#gummy',    colors:['#E4485A','#F2A93B','#5F9E58','#E886A8','#7FA8D9'], opacity:.92, scale:[.9,1.1]},
+  mallow:   {href:'#mallow',   colors:['#FFFDF6','#F9C9D4'], scale:[.85,1.1], alternate:true},
+  chips:    {href:'#chip',     colors:['#4A2E1B'], scale:[.8,1.05], burst:2},
+  berry:    {href:'#berry',    colors:[null], scale:[.95,1.2]},
+  boba:     {href:'#boba',     colors:['#FF4F8B','#FFB300'], scale:[.9,1.15]},
+  graham:   {href:'#dust',     colors:[null], scale:[.9,1.4], burst:3},
+  coconut:  {href:'#flake',    colors:['#FFFEF8','#F7F0DF','#F2E8D2'], scale:[1,1.6], burst:4},
+  worms:    {href:'#worm',     colors:['#E4485A','#F2A93B','#5F9E58','#7FA8D9','#E886A8'], scale:[.95,1.2], stroke:true},
+};
+const SYRUPS = {
+  marshmallow:{main:'#FFFDF6', hi:'#E4DCC8'},                    // sticky — no smooth edge
+  chocolate:  {main:'#5C4030', hi:'#7A5B45', edge:'#3A2419'},
+  caramel:    {main:'#E09B2D', hi:'#F4C465', edge:'#BE7A15'},
+  strawberry: {main:'#D6365B', hi:'#EF6B8C', edge:'#A82344'},
+  pistachio:  {main:'#97B85B', hi:'#BCD489', edge:'#74963F'},
+};
+const CUPS = {
+  'pink':'#F5A9BC', 'purple':'#A78BD3', 'blue':'#4FA8D8',
+  'stripe-yellow':'#FFFDF6', 'stripe-green':'#FFFDF6',
+  'dot-blue':'url(#pat-dot-blue)', 'dot-orange':'url(#pat-dot-orange)', 'dot-pink':'url(#pat-dot-pink)',
+};
+
+const state = {flavor:'vanilla', cup:'dot-blue', tool:null}; // tool = {kind:'top'|'syr', id}
+const svg = document.querySelector('#stage svg');
+const decor = document.getElementById('decor');
+const stage = document.getElementById('stage');
+
+function paintFlavor(){
+  const fl = state.flavor==='swirl' ? FLAVORS.vanilla : FLAVORS[state.flavor];
+  document.querySelectorAll('.sv-base').forEach(p=>p.setAttribute('fill', fl.base));
+  document.querySelectorAll('.sv-shade-fill').forEach(p=>p.setAttribute('fill', fl.shade));
+  document.querySelectorAll('.sv-shade-stroke').forEach(p=>p.setAttribute('stroke', fl.shade));
+  const ribbons = document.getElementById('ribbons');
+  ribbons.setAttribute('fill', FLAVORS.chocolate.base);
+  ribbons.setAttribute('visibility', state.flavor==='swirl' ? 'visible' : 'hidden');
+  document.querySelectorAll('[data-flavor]').forEach(b=>b.classList.toggle('active', b.dataset.flavor===state.flavor));
+}
+function paintCup(){
+  document.getElementById('cup-body').setAttribute('fill', CUPS[state.cup]);
+  document.getElementById('stripes-yellow').setAttribute('visibility', state.cup==='stripe-yellow'?'visible':'hidden');
+  document.getElementById('stripes-green').setAttribute('visibility', state.cup==='stripe-green'?'visible':'hidden');
+  document.querySelectorAll('[data-cup]').forEach(b=>b.classList.toggle('active', b.dataset.cup===state.cup));
+}
+function paintTool(){
+  document.querySelectorAll('[data-top]').forEach(b=>
+    b.classList.toggle('on', !!state.tool && state.tool.kind==='top' && state.tool.id===b.dataset.top));
+  document.querySelectorAll('[data-syr]').forEach(b=>
+    b.classList.toggle('on', !!state.tool && state.tool.kind==='syr' && state.tool.id===b.dataset.syr));
+  stage.classList.toggle('placing', !!state.tool);
+  document.body.classList.toggle('has-tool', !!state.tool);
+}
+
+document.getElementById('swatches').addEventListener('click', e=>{
+  const b = e.target.closest('.swatch'); if(!b) return;
+  state.flavor = b.dataset.flavor; paintFlavor();
+});
+document.getElementById('cup-swatches').addEventListener('click', e=>{
+  const b = e.target.closest('.swatch'); if(!b) return;
+  state.cup = b.dataset.cup; paintCup();
+});
+function pickTool(kind, id){
+  state.tool = (state.tool && state.tool.kind===kind && state.tool.id===id) ? null : {kind,id};
+  paintTool();
+}
+document.getElementById('chips-toppings').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(b) pickTool('top', b.dataset.top);
+});
+document.getElementById('chips-syrup').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(b) pickTool('syr', b.dataset.syr);
+});
+
+const tabT = document.getElementById('tab-toppings'), tabS = document.getElementById('tab-syrup');
+tabT.addEventListener('click', ()=>{
+  tabT.classList.remove('inactive'); tabS.classList.add('inactive');
+  document.getElementById('chips-toppings').style.display='flex';
+  document.getElementById('chips-syrup').style.display='none';
+});
+tabS.addEventListener('click', ()=>{
+  tabS.classList.remove('inactive'); tabT.classList.add('inactive');
+  document.getElementById('chips-syrup').style.display='flex';
+  document.getElementById('chips-toppings').style.display='none';
+});
+
+/* ---------- soft ASMR sounds (synthesized, no audio files) ---------- */
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+function noiseBurst(dur, vol, lp, body){
+  const n = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, n, AC.sampleRate);
+  const ch = buf.getChannelData(0);
+  for (let i = 0; i < n; i++){
+    const t = i / AC.sampleRate;
+    const env = Math.sin(Math.PI * Math.min(t/dur, 1)) * Math.exp(-t * 3);
+    ch[i] = (Math.random()*2 - 1) * env * .2 + Math.sin(2*Math.PI*body*t) * env * .1;
+  }
+  const src = AC.createBufferSource(); src.buffer = buf;
+  const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp;
+  const g = AC.createGain(); g.gain.value = vol;
+  src.connect(f); f.connect(g); g.connect(AC.destination);
+  src.start();
+}
+function plopTone(f0, f1, dur, vol){
+  const t = AC.currentTime;
+  const o = AC.createOscillator(), g = AC.createGain();
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+  o.type = 'sine';
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(f1, 30), t + dur*.6);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + .008);
+  g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.connect(lp); lp.connect(g); g.connect(AC.destination);
+  o.start(t); o.stop(t + dur + .02);
+}
+function ping(freq, dur, vol){ plopTone(freq, freq*.985, dur, vol); }
+
+const NOTES = [523, 659, 784, 880, 1047];
+const SOUND = {
+  sprinkles: () => { for (let i=0;i<2;i++) setTimeout(()=>ping(pick(NOTES), .15, .02), i*55 + rand(0,14)); },
+  stars:     () => { for (let i=0;i<2;i++) setTimeout(()=>ping(pick([784,880,1047,1319]), .14, .018), i*50 + rand(0,12)); },
+  chocsprinkles: () => { for (let i=0;i<2;i++) setTimeout(()=>ping(pick([392,440,523,587]), .15, .02), i*55 + rand(0,14)); },
+  gummy:     () => plopTone(430, 120, .22, .05),
+  worms:     () => { plopTone(360, 100, .24, .05); setTimeout(()=>plopTone(300, 90, .18, .03), 70); },
+  mallow:    () => noiseBurst(.2, .35, 340, 130),
+  chips:     () => { noiseBurst(.09, .9, 380, 110); ping(150, .1, .05); },
+  graham:    () => { noiseBurst(.08, .8, 900, 95); setTimeout(()=>noiseBurst(.07, .6, 800, 85), 55); },
+  berry:     () => { noiseBurst(.12, .3, 330, 170); setTimeout(()=>ping(420, .1, .02), 40); },
+  boba:      () => ping(1080, .13, .018),
+  coconut:   () => { noiseBurst(.07, .45, 1100, 100); setTimeout(()=>noiseBurst(.06, .3, 1000, 90), 45); },
+  syrup:     () => { noiseBurst(.3, 1.2, 170, 55); plopTone(85, 70, .24, .1); },
+};
+let lastSound = 0;
+function playSound(type){
+  try { AC.resume(); } catch(e){}
+  const now = performance.now();
+  if (now - lastSound < 90) return;
+  lastSound = now;
+  (SOUND[type] || (()=>{}))();
+}
+
+/* ---------- placing on the froyo ---------- */
+const rand = (a,b)=>a+Math.random()*(b-a);
+const pick = arr=>arr[Math.floor(Math.random()*arr.length)];
+const altCounters = {};
+
+function svgPoint(evt){
+  return new DOMPoint(evt.clientX, evt.clientY).matrixTransform(svg.getScreenCTM().inverse());
+}
+function onServe(evt){
+  const el = document.elementFromPoint(evt.clientX, evt.clientY);
+  return !!(el && el.closest && el.closest('#soft-serve, #decor'));
+}
+function placeTopping(p){
+  const t = TOPPINGS[state.tool.id];
+  const n = t.burst || 1;
+  for(let i=0;i<n;i++){
+    const u = document.createElementNS(SVG_NS,'use');
+    u.setAttribute('href', t.href);
+    const dx = i? rand(-16,16):0, dy = i? rand(-12,12):0;
+    u.setAttribute('transform',
+      `translate(${(p.x+dx).toFixed(1)} ${(p.y+dy).toFixed(1)}) rotate(${rand(-40,40).toFixed(0)}) scale(${rand(t.scale[0],t.scale[1]).toFixed(2)})`);
+    const c = t.alternate
+      ? t.colors[(altCounters[state.tool.id] = (altCounters[state.tool.id] || 0) + 1) % t.colors.length]
+      : pick(t.colors);
+    if (c) u.setAttribute(t.stroke ? 'stroke' : 'fill', c);
+    if (t.opacity) u.setAttribute('opacity', t.opacity);
+    decor.appendChild(u);
+  }
+  playSound(state.tool.id);
+}
+
+let placing=false, lastPt=null, syrPaths=null, syrPrev=null, syrPhase=0;
+function startSyr(p){
+  const s = SYRUPS[state.tool.id];
+  const d0 = `M ${p.x.toFixed(1)} ${p.y.toFixed(1)} l 0 .1`;
+  const g = document.createElementNS(SVG_NS,'g');
+  syrPaths = [];
+  const stroke = (color, w, opacity, transform) => {
+    const el = document.createElementNS(SVG_NS,'path');
+    el.setAttribute('stroke', color);
+    el.setAttribute('stroke-width', w);
+    el.setAttribute('fill','none');
+    if (opacity) el.setAttribute('opacity', opacity);
+    if (transform) el.setAttribute('transform', transform);
+    el.setAttribute('d', d0);
+    g.appendChild(el); syrPaths.push(el);
+  };
+  if (s.edge) { stroke(s.edge, 17); g.setAttribute('opacity', '.82'); }
+  stroke(s.main, s.edge ? 12.5 : 15);
+  stroke(s.hi, 4.5, s.edge ? '.6' : '.9', 'translate(-1.5 -3)');
+  decor.appendChild(g);
+  syrPrev = p;
+  playSound('syrup');
+}
+svg.addEventListener('pointerdown', evt=>{
+  if(!state.tool || !onServe(evt)) return;
+  evt.preventDefault();
+  try { svg.setPointerCapture(evt.pointerId); } catch(e) {}
+  placing = true;
+  const p = svgPoint(evt);
+  if(state.tool.kind==='top'){ placeTopping(p); lastPt=p; }
+  else startSyr(p);
+});
+svg.addEventListener('pointermove', evt=>{
+  if(!placing) return;
+  const p = svgPoint(evt);
+  const on = onServe(evt);
+  if(state.tool.kind==='top'){
+    if(on && (!lastPt || Math.hypot(p.x-lastPt.x, p.y-lastPt.y) > 30)){ placeTopping(p); lastPt=p; }
+  } else {
+    if(!on){ syrPaths=null; syrPrev=null; return; }
+    if(!syrPaths){ startSyr(p); return; }
+    const d = Math.hypot(p.x-syrPrev.x, p.y-syrPrev.y);
+    if(d > 7){
+      // add a gentle drizzle wiggle perpendicular to the drag direction
+      syrPhase += d/9;
+      const nx=-(p.y-syrPrev.y)/d, ny=(p.x-syrPrev.x)/d, w=Math.sin(syrPhase)*4;
+      const mx=(p.x+syrPrev.x)/2 + nx*w, my=(p.y+syrPrev.y)/2 + ny*w;
+      const seg = ` Q ${syrPrev.x.toFixed(1)} ${syrPrev.y.toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)}`;
+      syrPaths.forEach(el => el.setAttribute('d', el.getAttribute('d') + seg));
+      syrPrev = p;
+      playSound('syrup');
+    }
+  }
+});
+function stop(){ placing=false; lastPt=null; syrPaths=null; syrPrev=null; }
+svg.addEventListener('pointerup', stop);
+svg.addEventListener('pointercancel', stop);
+
+/* ---------- actions ---------- */
+// Clear wipes toppings & syrup only — flavor and cup stay as chosen
+document.getElementById('clear').addEventListener('click', ()=>{
+  decor.replaceChildren();
+});
+
+function showToast(msg){
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'), 1800);
+}
+
+/* ---------- froyo gallery ---------- */
+const DECOR_TAGS = new Set(['g','use','path']);
+const DECOR_ATTRS = new Set(['href','transform','fill','stroke','stroke-width','opacity','d','stroke-linecap','stroke-linejoin','class']);
+function sanitizeDecor(markup){
+  const doc = new DOMParser().parseFromString(
+    `<svg xmlns="${SVG_NS}" xmlns:xlink="http://www.w3.org/1999/xlink">${markup}</svg>`, 'image/svg+xml');
+  const out = [];
+  const clean = (node)=>{
+    if (node.nodeType !== 1) return null;
+    const tag = node.tagName.toLowerCase();
+    if (!DECOR_TAGS.has(tag)) return null;
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const a of [...node.attributes]){
+      if (!DECOR_ATTRS.has(a.name)) continue;
+      if (a.name === 'href' && !a.value.startsWith('#')) continue;
+      el.setAttribute(a.name, a.value);
+    }
+    [...node.children].forEach(c => { const k = clean(c); if (k) el.appendChild(k); });
+    return el;
+  };
+  const root = doc.documentElement;
+  if (root && root.tagName === 'svg')
+    [...root.children].forEach(c => { const k = clean(c); if (k) out.push(k); });
+  return out;
+}
+
+function renderCell(entry){
+  const cell = document.createElement('div');
+  cell.className = 'cell';
+  const c = svg.cloneNode(true);
+  c.removeAttribute('aria-label'); c.setAttribute('aria-hidden','true');
+  const fl = entry.flavor==='swirl' ? FLAVORS.vanilla : (FLAVORS[entry.flavor] || FLAVORS.vanilla);
+  c.querySelectorAll('.sv-base').forEach(p=>p.setAttribute('fill', fl.base));
+  c.querySelectorAll('.sv-shade-stroke').forEach(p=>p.setAttribute('stroke', fl.shade));
+  const rb = c.querySelector('#ribbons');
+  rb.setAttribute('fill', FLAVORS.chocolate.base);
+  rb.setAttribute('visibility', entry.flavor==='swirl' ? 'visible' : 'hidden');
+  c.querySelector('#cup-body').setAttribute('fill', CUPS[entry.cup] || CUPS['dot-blue']);
+  c.querySelector('#stripes-yellow').setAttribute('visibility', entry.cup==='stripe-yellow'?'visible':'hidden');
+  c.querySelector('#stripes-green').setAttribute('visibility', entry.cup==='stripe-green'?'visible':'hidden');
+  c.querySelector('#decor').replaceChildren(...sanitizeDecor(entry.decor || ''));
+  ['#spoon','#spoon-cover'].forEach(s=>{ const n = c.querySelector(s); if (n) n.remove(); });
+  c.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
+  cell.appendChild(c);
+  return cell;
+}
+
+function loadGallery(){
+  const grid = document.getElementById('gallery');
+  fetch('/api/gallery').then(r=>{ if(!r.ok) throw 0; return r.json(); }).then(list=>{
+    grid.replaceChildren();
+    if (!list.length){
+      const p = document.createElement('p');
+      p.className = 'empty';
+      p.textContent = 'No froyos yet — make one and hit Share ✦ to be the first!';
+      grid.appendChild(p);
+      return;
+    }
+    list.slice(-24).reverse().forEach(e=>grid.appendChild(renderCell(e)));
+  }).catch(()=>{
+    grid.replaceChildren();
+    const p = document.createElement('p');
+    p.className = 'empty';
+    p.textContent = 'Gallery unavailable (run via the froyo-lab server).';
+    grid.appendChild(p);
+  });
+}
+
+const galleryView = document.getElementById('gallery-view');
+function openGallery(){ loadGallery(); galleryView.hidden = false; galleryView.scrollTop = 0; }
+function closeGallery(){ galleryView.hidden = true; }
+document.getElementById('view-gallery').addEventListener('click', openGallery);
+document.getElementById('close-gallery').addEventListener('click', closeGallery);
+
+/* ---------- share flow: spoon slides in, froyo pops up ---------- */
+const shareModal = document.getElementById('share-modal');
+const spoon = document.getElementById('spoon');
+const stageHome = stage.parentNode, stageNext = stage.nextElementSibling;
+
+const spoonCover = document.getElementById('spoon-cover');
+function openShareModal(){
+  shareModal.hidden = false;
+  document.getElementById('stage-slot').appendChild(stage);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    spoon.classList.add('spoon-in');
+    spoonCover.setAttribute('visibility','visible');
+  }));
+}
+function closeShareModal(){
+  spoon.classList.remove('spoon-in');
+  spoonCover.setAttribute('visibility','hidden');
+  shareModal.hidden = true;
+  stageHome.insertBefore(stage, stageNext);
+}
+document.getElementById('share').addEventListener('click', openShareModal);
+document.getElementById('share-cancel').addEventListener('click', closeShareModal);
+document.getElementById('share-confirm').addEventListener('click', ()=>{
+  fetch('/api/gallery', {
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body: JSON.stringify({flavor: state.flavor, cup: state.cup, decor: decor.innerHTML}),
+  }).then(r=>{ if(!r.ok) throw 0; return r.json(); }).then(()=>{
+    closeShareModal();
+    showToast('Added to the Froyo Gallery ✦');
+    openGallery();
+  }).catch(()=>showToast('Could not reach the gallery'));
+});
+
+
+paintFlavor(); paintCup(); paintTool();
+</script>
+</body>
+</html>
