@@ -161,6 +161,7 @@
     pointer-events:none;
   }
   #spoon.spoon-in{transform:translate(252px,334px) rotate(-38deg)}
+  #spoon.spoon-landed{clip-path:url(#spoonBite)}
   #share-modal{
     position:fixed;inset:0;z-index:60;
     display:flex;align-items:center;justify-content:center;
@@ -441,8 +442,8 @@
             stroke-width="10" stroke-linecap="round"/>
     </g>
 
-    <!-- froyo spoon (slides in when sharing); bowl is clipped where it enters the yogurt -->
-    <g id="spoon" clip-path="url(#spoonBite)">
+    <!-- froyo spoon (slides in when sharing); bowl gets clipped once it lands in the yogurt -->
+    <g id="spoon">
       <!-- handle + bear scaled up; bowl untouched so the landing pose is identical -->
       <g transform="scale(1.35)">
         <g fill="#2FBFB3">
@@ -922,16 +923,25 @@ const spoon = document.getElementById('spoon');
 const stageHome = stage.parentNode, stageNext = stage.nextElementSibling;
 
 const spoonCover = document.getElementById('spoon-cover');
+// the bowl only gets "swallowed" (clipped + crease) once the flight ends
+let landTimer = null;
+function landSpoon(){
+  if (!spoon.classList.contains('spoon-in')) return;
+  spoon.classList.add('spoon-landed');
+  spoonCover.setAttribute('visibility','visible');
+}
+spoon.addEventListener('transitionend', landSpoon);
 function openShareModal(){
   shareModal.hidden = false;
   document.getElementById('stage-slot').appendChild(stage);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    spoon.classList.add('spoon-in');
-    spoonCover.setAttribute('visibility','visible');
-  }));
+  void spoon.getBoundingClientRect(); // flush layout so the flight transition runs
+  spoon.classList.add('spoon-in');
+  clearTimeout(landTimer);
+  landTimer = setTimeout(landSpoon, 850); // fallback if transitionend never fires
 }
 function closeShareModal(){
-  spoon.classList.remove('spoon-in');
+  clearTimeout(landTimer);
+  spoon.classList.remove('spoon-in','spoon-landed');
   spoonCover.setAttribute('visibility','hidden');
   shareModal.hidden = true;
   stageHome.insertBefore(stage, stageNext);
