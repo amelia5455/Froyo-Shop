@@ -170,8 +170,18 @@
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   @media (max-width:560px){
-    header{padding:20px 20px 0}
-    header nav{display:none}
+    header{padding:14px 18px 0}
+    header .brand{font-size:13px}
+    main{width:100%;padding:0 14px 20px}
+    #stage{width:min(320px,88vw);margin-top:-6px}
+    .swatches{flex-wrap:wrap;row-gap:8px}
+    .chip{padding:9px 14px}
+    .tab{padding:9px 0}
+    .actions button{padding:12px 0}
+    #share-modal .card{padding:16px 16px 20px}
+    #share-modal #stage{width:min(200px,55vw)}
+    .share-title{font-size:17px}
+    .share-sub{font-size:12.5px;margin:5px 0 14px}
   }
 </style>
 </head>
@@ -247,7 +257,7 @@
         <circle cx="16" cy="14" r="14" fill="#FFFDF6"/><circle cx="47" cy="41" r="14" fill="#FFFDF6"/>
       </pattern>
 
-      <!-- topping shapes (sized to read like Sasha's — chunky) -->
+      <!-- topping shapes (sized to read like Sasha's: chunky) -->
       <g id="gummy">
         <ellipse cx="0" cy="8" rx="10" ry="11"/>
         <circle cx="0" cy="-8" r="8"/>
@@ -556,7 +566,7 @@ const TOPPINGS = {
   worms:    {href:'#worm',     colors:['#E4485A','#F2A93B','#5F9E58','#7FA8D9','#E886A8'], scale:[.95,1.2], stroke:true},
 };
 const SYRUPS = {
-  marshmallow:{main:'#FFFDF6', hi:'#E4DCC8'},                    // sticky — no smooth edge
+  marshmallow:{main:'#FFFDF6', hi:'#E4DCC8'},                    // sticky, no smooth edge
   chocolate:  {main:'#5C4030', hi:'#7A5B45', edge:'#3A2419'},
   caramel:    {main:'#E09B2D', hi:'#F4C465', edge:'#BE7A15'},
   strawberry: {main:'#D6365B', hi:'#EF6B8C', edge:'#A82344'},
@@ -775,7 +785,7 @@ svg.addEventListener('pointerup', stop);
 svg.addEventListener('pointercancel', stop);
 
 /* ---------- actions ---------- */
-// Clear wipes toppings & syrup only — flavor and cup stay as chosen
+// Clear wipes toppings & syrup only; flavor and cup stay as chosen
 document.getElementById('clear').addEventListener('click', ()=>{
   decor.replaceChildren();
 });
@@ -840,7 +850,7 @@ function loadGallery(){
     if (!list.length){
       const p = document.createElement('p');
       p.className = 'empty';
-      p.textContent = 'No froyos yet — make one and hit Share ✦ to be the first!';
+      p.textContent = 'No froyos yet! Make one and hit Share ✦ to be the first.';
       grid.appendChild(p);
       return;
     }
@@ -891,7 +901,7 @@ document.getElementById('share-confirm').addEventListener('click', ()=>{
     closeShareModal();
     showToast('Added to the Froyo Gallery ✦');
     openGallery();
-  }).catch(()=>showToast('Could not reach the gallery'));
+  }).catch(()=>showToast('Sharing needs the froyo server. Open the app at localhost:4180 with server.mjs running.'));
 });
 
 
