@@ -157,17 +157,16 @@
   }
   #spoon{
     transform:translate(-380px,140px) rotate(75deg);
-    transition:transform .6s cubic-bezier(.22,.9,.3,1.02);
     pointer-events:none;
   }
-  /* phase 1: swoop to the surface, spoon whole */
-  #spoon.spoon-in{transform:translate(233px,310px) rotate(-38deg)}
-  /* phase 2: plunge into the yogurt while the bowl gets swallowed */
-  #spoon.spoon-in.spoon-landed{
-    transform:translate(252px,334px) rotate(-38deg);
-    clip-path:url(#spoonBite);
-    transition:transform .32s cubic-bezier(.45,.05,.6,.3);
+  /* one continuous dive: swoop in, pass the surface, press deeper without stopping */
+  #spoon.spoon-in{animation:spoonDive .85s forwards}
+  @keyframes spoonDive{
+    0%{transform:translate(-380px,140px) rotate(75deg);animation-timing-function:cubic-bezier(.3,.75,.6,.92)}
+    72%{transform:translate(233px,310px) rotate(-38deg);animation-timing-function:cubic-bezier(.33,.15,.3,1)}
+    100%{transform:translate(252px,334px) rotate(-38deg)}
   }
+  #spoon.spoon-landed{clip-path:url(#spoonBite)}
   #spoon-cover{opacity:0;transition:opacity .3s ease}
   #spoon-cover.on{opacity:1}
   #share-modal{
@@ -931,25 +930,27 @@ const spoon = document.getElementById('spoon');
 const stageHome = stage.parentNode, stageNext = stage.nextElementSibling;
 
 const spoonCover = document.getElementById('spoon-cover');
-// flight (phase 1) ends -> plunge (phase 2) -> crease fades in
-let landTimer = null, coverTimer = null;
-function landSpoon(){
-  if (!spoon.classList.contains('spoon-in') || spoon.classList.contains('spoon-landed')) return;
-  spoon.classList.add('spoon-landed');
-  clearTimeout(coverTimer);
-  coverTimer = setTimeout(()=>spoonCover.classList.add('on'), 240);
+// the dive is one animation; the bowl clip kicks in as it crosses the surface (~72%)
+let swallowTimer = null, coverTimer = null;
+function swallowSpoon(){
+  if (spoon.classList.contains('spoon-in')) spoon.classList.add('spoon-landed');
 }
-spoon.addEventListener('transitionend', landSpoon);
+function settleSpoon(){
+  swallowSpoon();
+  if (spoon.classList.contains('spoon-in')) spoonCover.classList.add('on');
+}
+spoon.addEventListener('animationend', settleSpoon);
 function openShareModal(){
   shareModal.hidden = false;
   document.getElementById('stage-slot').appendChild(stage);
-  void spoon.getBoundingClientRect(); // flush layout so the flight transition runs
+  void spoon.getBoundingClientRect(); // flush layout so the animation starts cleanly
   spoon.classList.add('spoon-in');
-  clearTimeout(landTimer);
-  landTimer = setTimeout(landSpoon, 720); // fallback if transitionend never fires
+  clearTimeout(swallowTimer); clearTimeout(coverTimer);
+  swallowTimer = setTimeout(swallowSpoon, 590);  // ~72% of the .85s dive
+  coverTimer = setTimeout(settleSpoon, 950);     // fallback if animationend never fires
 }
 function closeShareModal(){
-  clearTimeout(landTimer); clearTimeout(coverTimer);
+  clearTimeout(swallowTimer); clearTimeout(coverTimer);
   spoon.classList.remove('spoon-in','spoon-landed');
   spoonCover.classList.remove('on');
   shareModal.hidden = true;
