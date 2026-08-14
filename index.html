@@ -157,11 +157,19 @@
   }
   #spoon{
     transform:translate(-380px,140px) rotate(75deg);
-    transition:transform .75s cubic-bezier(.22,.9,.3,1.03);
+    transition:transform .6s cubic-bezier(.22,.9,.3,1.02);
     pointer-events:none;
   }
-  #spoon.spoon-in{transform:translate(252px,334px) rotate(-38deg)}
-  #spoon.spoon-landed{clip-path:url(#spoonBite)}
+  /* phase 1: swoop to the surface, spoon whole */
+  #spoon.spoon-in{transform:translate(233px,310px) rotate(-38deg)}
+  /* phase 2: plunge into the yogurt while the bowl gets swallowed */
+  #spoon.spoon-in.spoon-landed{
+    transform:translate(252px,334px) rotate(-38deg);
+    clip-path:url(#spoonBite);
+    transition:transform .32s cubic-bezier(.45,.05,.6,.3);
+  }
+  #spoon-cover{opacity:0;transition:opacity .3s ease}
+  #spoon-cover.on{opacity:1}
   #share-modal{
     position:fixed;inset:0;z-index:60;
     display:flex;align-items:center;justify-content:center;
@@ -468,7 +476,7 @@
       <ellipse cx="0" cy="-2" rx="25" ry="36" fill="#1E948B" opacity=".45"/>
     </g>
     <!-- crease where the spoon enters the yogurt -->
-    <g id="spoon-cover" visibility="hidden" clip-path="url(#serveClipOnStage)">
+    <g id="spoon-cover" clip-path="url(#serveClipOnStage)">
       <path class="sv-shade-stroke" fill="none" stroke-width="3.5" opacity=".55" stroke-linecap="round"
         d="M 224 363 Q 259 343 287 314"/>
     </g>
@@ -923,12 +931,13 @@ const spoon = document.getElementById('spoon');
 const stageHome = stage.parentNode, stageNext = stage.nextElementSibling;
 
 const spoonCover = document.getElementById('spoon-cover');
-// the bowl only gets "swallowed" (clipped + crease) once the flight ends
-let landTimer = null;
+// flight (phase 1) ends -> plunge (phase 2) -> crease fades in
+let landTimer = null, coverTimer = null;
 function landSpoon(){
-  if (!spoon.classList.contains('spoon-in')) return;
+  if (!spoon.classList.contains('spoon-in') || spoon.classList.contains('spoon-landed')) return;
   spoon.classList.add('spoon-landed');
-  spoonCover.setAttribute('visibility','visible');
+  clearTimeout(coverTimer);
+  coverTimer = setTimeout(()=>spoonCover.classList.add('on'), 240);
 }
 spoon.addEventListener('transitionend', landSpoon);
 function openShareModal(){
@@ -937,12 +946,12 @@ function openShareModal(){
   void spoon.getBoundingClientRect(); // flush layout so the flight transition runs
   spoon.classList.add('spoon-in');
   clearTimeout(landTimer);
-  landTimer = setTimeout(landSpoon, 850); // fallback if transitionend never fires
+  landTimer = setTimeout(landSpoon, 720); // fallback if transitionend never fires
 }
 function closeShareModal(){
-  clearTimeout(landTimer);
+  clearTimeout(landTimer); clearTimeout(coverTimer);
   spoon.classList.remove('spoon-in','spoon-landed');
-  spoonCover.setAttribute('visibility','hidden');
+  spoonCover.classList.remove('on');
   shareModal.hidden = true;
   stageHome.insertBefore(stage, stageNext);
 }
