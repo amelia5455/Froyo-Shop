@@ -159,14 +159,13 @@
     transform:translate(-380px,140px) rotate(75deg);
     pointer-events:none;
   }
-  /* one continuous dive: swoop in, pass the surface, press deeper without stopping */
+  /* one continuous dive; the segment velocities match at the surface crossing */
   #spoon.spoon-in{animation:spoonDive .85s forwards}
   @keyframes spoonDive{
-    0%{transform:translate(-380px,140px) rotate(75deg);animation-timing-function:cubic-bezier(.3,.75,.6,.92)}
-    72%{transform:translate(233px,310px) rotate(-38deg);animation-timing-function:cubic-bezier(.33,.15,.3,1)}
+    0%{transform:translate(-380px,140px) rotate(75deg);animation-timing-function:cubic-bezier(.25,.6,.6,.96)}
+    82%{transform:translate(233px,310px) rotate(-38deg);animation-timing-function:cubic-bezier(.4,.18,.4,1)}
     100%{transform:translate(252px,334px) rotate(-38deg)}
   }
-  #spoon.spoon-landed{clip-path:url(#spoonBite)}
   #spoon-cover{opacity:0;transition:opacity .3s ease}
   #spoon-cover.on{opacity:1}
   #share-modal{
@@ -236,8 +235,13 @@
         C 217 258, 229 232, 256 218 C 250 214, 246 209, 244 202
         C 238 180, 248 158, 270 144 C 264 138, 262 130, 264 122
         C 270 106, 286 94, 302 90 C 312 88, 318 90, 322 96 Z"/></clipPath>
-      <!-- cuts off the spoon bowl where it enters the yogurt (spoon-local coords) -->
-      <clipPath id="spoonBite"><rect x="-95" y="-265" width="190" height="271"/></clipPath>
+      <!-- everything except a "pocket" inside the yogurt: the spoon vanishes progressively as it dives in -->
+      <clipPath id="spoonPocket"><path clip-rule="evenodd" d="M0 0 H600 V780 H0 Z
+        M 224 339 Q 259 319 287 290
+        C 312 299, 332 308, 338 332
+        C 346 374, 330 412, 296 430
+        C 262 442, 234 424, 224 392
+        C 218 372, 219 355, 224 339 Z"/></clipPath>
       <!-- serve silhouette in on-stage coordinates (same transform as #soft-serve) -->
       <clipPath id="serveClipOnStage"><path transform="translate(300 483) scale(.93 .88) translate(-300 -483)" d="M322 96
         C 340 116, 352 134, 350 152 C 362 168, 368 190, 358 208 C 356 214, 352 218, 346 220
@@ -449,7 +453,8 @@
             stroke-width="10" stroke-linecap="round"/>
     </g>
 
-    <!-- froyo spoon (slides in when sharing); bowl gets clipped once it lands in the yogurt -->
+    <!-- froyo spoon (slides in when sharing); the pocket clip swallows it as it crosses the surface -->
+    <g id="spoon-track" clip-path="url(#spoonPocket)">
     <g id="spoon">
       <!-- handle + bear scaled up; bowl untouched so the landing pose is identical -->
       <g transform="scale(1.35)">
@@ -473,6 +478,7 @@
       </g>
       <ellipse cx="0" cy="0" rx="33" ry="45" fill="#2FBFB3"/>
       <ellipse cx="0" cy="-2" rx="25" ry="36" fill="#1E948B" opacity=".45"/>
+    </g>
     </g>
     <!-- crease where the spoon enters the yogurt -->
     <g id="spoon-cover" clip-path="url(#serveClipOnStage)">
@@ -873,7 +879,7 @@ function buildBowlSvg(entry){
   c.querySelector('#stripes-yellow').setAttribute('visibility', entry.cup==='stripe-yellow'?'visible':'hidden');
   c.querySelector('#stripes-green').setAttribute('visibility', entry.cup==='stripe-green'?'visible':'hidden');
   c.querySelector('#decor').replaceChildren(...sanitizeDecor(entry.decor || ''));
-  ['#spoon','#spoon-cover'].forEach(s=>{ const n = c.querySelector(s); if (n) n.remove(); });
+  ['#spoon-track','#spoon-cover'].forEach(s=>{ const n = c.querySelector(s); if (n) n.remove(); });
   c.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
   return c;
 }
@@ -930,13 +936,9 @@ const spoon = document.getElementById('spoon');
 const stageHome = stage.parentNode, stageNext = stage.nextElementSibling;
 
 const spoonCover = document.getElementById('spoon-cover');
-// the dive is one animation; the bowl clip kicks in as it crosses the surface (~72%)
-let swallowTimer = null, coverTimer = null;
-function swallowSpoon(){
-  if (spoon.classList.contains('spoon-in')) spoon.classList.add('spoon-landed');
-}
+// the pocket clip swallows the bowl geometrically; only the crease needs timing
+let coverTimer = null;
 function settleSpoon(){
-  swallowSpoon();
   if (spoon.classList.contains('spoon-in')) spoonCover.classList.add('on');
 }
 spoon.addEventListener('animationend', settleSpoon);
@@ -945,13 +947,12 @@ function openShareModal(){
   document.getElementById('stage-slot').appendChild(stage);
   void spoon.getBoundingClientRect(); // flush layout so the animation starts cleanly
   spoon.classList.add('spoon-in');
-  clearTimeout(swallowTimer); clearTimeout(coverTimer);
-  swallowTimer = setTimeout(swallowSpoon, 590);  // ~72% of the .85s dive
-  coverTimer = setTimeout(settleSpoon, 950);     // fallback if animationend never fires
+  clearTimeout(coverTimer);
+  coverTimer = setTimeout(settleSpoon, 950); // fallback if animationend never fires
 }
 function closeShareModal(){
-  clearTimeout(swallowTimer); clearTimeout(coverTimer);
-  spoon.classList.remove('spoon-in','spoon-landed');
+  clearTimeout(coverTimer);
+  spoon.classList.remove('spoon-in');
   spoonCover.classList.remove('on');
   shareModal.hidden = true;
   stageHome.insertBefore(stage, stageNext);
