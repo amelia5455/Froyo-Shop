@@ -546,11 +546,11 @@
     <button class="chip" data-syr="pistachio" style="--dot:#97B85B">Pistachio sauce</button>
   </div>
 
-  <p class="hint" id="hint">Now press &amp; drag on the froyo to add it ✦</p>
+  <p class="hint" id="hint">Now press &amp; drag on the froyo to add it</p>
 
   <div class="actions">
     <button id="clear">Clear</button>
-    <button id="share">Share ✦</button>
+    <button id="share">Share</button>
   </div>
 </main>
 
@@ -563,7 +563,7 @@
     <p class="share-sub">It'll go up in the Froyo Gallery for everyone to see.</p>
     <div class="actions">
       <button id="share-cancel">Keep decorating</button>
-      <button id="share-confirm">Share it ✦</button>
+      <button id="share-confirm">Share it</button>
     </div>
   </div>
 </div>
@@ -910,7 +910,7 @@ function loadGallery(){
     if (!list.length){
       const p = document.createElement('p');
       p.className = 'empty';
-      p.textContent = 'No froyos yet! Make one and hit Share ✦ to be the first.';
+      p.textContent = 'No froyos yet! Make one and hit Share to be the first.';
       grid.appendChild(p);
       return;
     }
@@ -966,7 +966,7 @@ document.getElementById('share-confirm').addEventListener('click', ()=>{
     body: JSON.stringify({flavor: state.flavor, cup: state.cup, decor: decor.innerHTML}),
   }).then(r=>{ if(!r.ok) throw 0; return r.json(); }).then(()=>{
     closeShareModal();
-    showToast('Added to the Froyo Gallery ✦');
+    showToast('Added to the Froyo Gallery');
     openGallery();
   }).catch(()=>showToast('Sharing needs the froyo server. Open the app at localhost:4180 with server.mjs running.'));
 });

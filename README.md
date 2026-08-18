@@ -2,7 +2,7 @@
 
 An interactive froyo builder inspired by [Sasha Balandina's Donut Lab](https://sashabalandina.com/donut-lab).
 
-Pick a flavor and a cup, then press & drag on the froyo to add toppings and pour syrups. Hit **Share ✦** and a little gummy-bear spoon dives in before your creation joins the Froyo Gallery for everyone to see.
+Pick a flavor and a cup, then press & drag on the froyo to add toppings and pour syrups. Hit **Share** and a little gummy-bear spoon dives in before your creation joins the Froyo Gallery for everyone to see.
 
 ## Features
 
